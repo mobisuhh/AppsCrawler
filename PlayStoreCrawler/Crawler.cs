@@ -12,69 +12,80 @@ namespace PlayStoreCrawler
         /// <summary>
          /// Entry point of the crawler
          /// </summary>
-         /// <param name="args"></param>
+         /// <param name="args">Each argument is a search string</param>
         static void Main (string[] args)
-        {
-            // Crawling App Store using all characters as the Search Input
-            CrawlStore ("a");
-            CrawlStore ("b");
-            CrawlStore ("c");
-            CrawlStore ("d");
-            CrawlStore ("e");
-            CrawlStore ("f");
-            CrawlStore ("g");
-            CrawlStore ("h");
-            CrawlStore ("i");
-            CrawlStore ("j");
-            CrawlStore ("K");
-            CrawlStore ("L");
-            CrawlStore ("M");
-            CrawlStore ("N");
-            CrawlStore ("O");
-            CrawlStore ("P");
-            CrawlStore ("Q");
-            CrawlStore ("R");
-            CrawlStore ("S");
-            CrawlStore ("T");
-            CrawlStore ("U");
-            CrawlStore ("V");
-            CrawlStore ("X");
-            CrawlStore ("Y");
-            CrawlStore ("Z");
-            CrawlStore ("W");
-            /// ... Keep Adding characters / search terms in order to increase the crawler's reach
-            // APP CATEGORIES
-            CrawlStore ("BOOKS");
-            CrawlStore ("BUSINESS");
-            CrawlStore ("COMICS");
-            CrawlStore ("COMMUNICATION");
-            CrawlStore ("EDUCATION");
-            CrawlStore ("ENTERTAINMENT");
-            CrawlStore ("FINANCE");
-            CrawlStore ("HEALTH");
-            CrawlStore ("LIFESTYLE");
-            CrawlStore ("LIVE WALLPAPER");
-            CrawlStore ("MEDIA");
-            CrawlStore ("MEDICAL");
-            CrawlStore ("MUSIC");
-            CrawlStore ("NEWS");
-            CrawlStore ("PERSONALIZATION");
-            CrawlStore ("PHOTOGRAPHY");
-            CrawlStore ("PRODUCTIVITY");
-            CrawlStore ("SHOPPING");
-            CrawlStore ("SOCIAL");
-            CrawlStore ("SPORTS");
-            CrawlStore ("TOOLS");
-            CrawlStore ("TRANSPORTATION");
-            CrawlStore ("TRAVEL");
-            CrawlStore ("WEATHER");
-            CrawlStore ("WIDGETS");
-            CrawlStore ("ARCADE");
-            CrawlStore ("BRAIN");
-            CrawlStore ("CASUAL");
-            CrawlStore ("CARDS");
-            CrawlStore ("RACING");
+		{
+			if (args.Length == 0) {
+				CrawlStoreDefaults ();
+			} else {
+				foreach (string arg in args) {
+					CrawlStore (arg);
+				}
+			}            
         }
+
+		private static void CrawlStoreDefaults()
+		{
+			// Crawling App Store using all characters as the Search Input
+			CrawlStore ("a");
+			CrawlStore ("b");
+			CrawlStore ("c");
+			CrawlStore ("d");
+			CrawlStore ("e");
+			CrawlStore ("f");
+			CrawlStore ("g");
+			CrawlStore ("h");
+			CrawlStore ("i");
+			CrawlStore ("j");
+			CrawlStore ("K");
+			CrawlStore ("L");
+			CrawlStore ("M");
+			CrawlStore ("N");
+			CrawlStore ("O");
+			CrawlStore ("P");
+			CrawlStore ("Q");
+			CrawlStore ("R");
+			CrawlStore ("S");
+			CrawlStore ("T");
+			CrawlStore ("U");
+			CrawlStore ("V");
+			CrawlStore ("X");
+			CrawlStore ("Y");
+			CrawlStore ("Z");
+			CrawlStore ("W");
+			/// ... Keep Adding characters / search terms in order to increase the crawler's reach
+			// APP CATEGORIES
+			CrawlStore ("BOOKS");
+			CrawlStore ("BUSINESS");
+			CrawlStore ("COMICS");
+			CrawlStore ("COMMUNICATION");
+			CrawlStore ("EDUCATION");
+			CrawlStore ("ENTERTAINMENT");
+			CrawlStore ("FINANCE");
+			CrawlStore ("HEALTH");
+			CrawlStore ("LIFESTYLE");
+			CrawlStore ("LIVE WALLPAPER");
+			CrawlStore ("MEDIA");
+			CrawlStore ("MEDICAL");
+			CrawlStore ("MUSIC");
+			CrawlStore ("NEWS");
+			CrawlStore ("PERSONALIZATION");
+			CrawlStore ("PHOTOGRAPHY");
+			CrawlStore ("PRODUCTIVITY");
+			CrawlStore ("SHOPPING");
+			CrawlStore ("SOCIAL");
+			CrawlStore ("SPORTS");
+			CrawlStore ("TOOLS");
+			CrawlStore ("TRANSPORTATION");
+			CrawlStore ("TRAVEL");
+			CrawlStore ("WEATHER");
+			CrawlStore ("WIDGETS");
+			CrawlStore ("ARCADE");
+			CrawlStore ("BRAIN");
+			CrawlStore ("CASUAL");
+			CrawlStore ("CARDS");
+			CrawlStore ("RACING");
+		}
 
         /// <summary>
         /// Executes a Search using the searchField as the search parameter, 
@@ -106,7 +117,7 @@ namespace PlayStoreCrawler
                 server.Host = Consts.HOST;
 
                 // Executing Initial Request
-                response    = server.Post (Consts.CRAWL_URL, Consts.INITIAL_POST_DATA);
+				response    = server.Post (String.Format(Consts.CRAWL_URL, searchField), Consts.INITIAL_POST_DATA);
 
                 // Parsing Links out of Html Page (Initial Request)                
                 foreach (string url in parser.ParseAppUrls (response))
@@ -116,7 +127,7 @@ namespace PlayStoreCrawler
                     if ((!mongoDB.AppProcessed (Consts.APP_URL_PREFIX + url)) && (!mongoDB.AppQueued (url)))
                     {
                         // Console Feedback
-                        Console.WriteLine (" . Queued App");
+						Console.WriteLine (" . Queued App ({0})", url);
 
                         // Than, queue it :)
                         mongoDB.AddToQueue (url);
@@ -124,7 +135,7 @@ namespace PlayStoreCrawler
                     else
                     {
                         // Console Feedback
-                        Console.WriteLine (" . Duplicated App. Skipped");
+						Console.WriteLine (" . Duplicated App . Skipped ({0})", url);
                     }
                 }
 
@@ -138,7 +149,7 @@ namespace PlayStoreCrawler
                     string postData = String.Format (Consts.POST_DATA, (initialSkip * currentMultiplier));
 
                     // Executing request for values
-                    response = server.Post (Consts.CRAWL_URL, postData);
+					response = server.Post (String.Format(Consts.CRAWL_URL, searchField), postData);
 
                     // Checking Server Status
                     if (server.StatusCode != System.Net.HttpStatusCode.OK)
@@ -156,7 +167,7 @@ namespace PlayStoreCrawler
                         if ((!mongoDB.AppProcessed (Consts.APP_URL_PREFIX + url)) && (!mongoDB.AppQueued (url)))
                         {
                             // Console Feedback
-                            Console.WriteLine (" . Queued App");
+							Console.WriteLine (" . Queued App ({0})", url);
 
                             // Than, queue it :)
                             mongoDB.AddToQueue (url);
@@ -164,7 +175,7 @@ namespace PlayStoreCrawler
                         else
                         {
                             // Console Feedback
-                            Console.WriteLine (" . Duplicated App. Skipped");
+							Console.WriteLine (" . Duplicated App. Skipped ({0})", url);
                         }
                     }
 
