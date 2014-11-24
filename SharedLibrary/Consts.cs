@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,6 +19,7 @@ namespace SharedLibrary
         public static readonly string APP_URL_PREFIX     = "https://play.google.com";
         public static readonly string ACCEPT_LANGUAGE    = "Accept-Language: en-US;q=0.6,en;q=0.4,es;q=0.2";
         public static readonly string REVIEWS_POST_DATA  = "reviewType=0&pageNum={0}&id={1}&reviewSortOrder=2&xhr=1";
+		public static readonly string WELLKNOWN_APP_URL  = "/store/apps/details?id=com.whatsapp";
         public static readonly string USER_AGENT         = "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36";
 
         // XPaths
@@ -63,10 +64,10 @@ namespace SharedLibrary
         public static readonly string QUEUE_NAME        = "PlayStoreQueue";
 
         // MongoDB - Remote Server
-        public static readonly string MONGO_SERVER           = "ec2-54-88-152-45.compute-1.amazonaws.com"; 
-        public static readonly string MONGO_PORT             = "21766";
-        public static readonly string MONGO_USER             = "GitHubCrawlerUser";
-        public static readonly string MONGO_PASS             = "g22LrJvULU5B";
+		public static readonly string MONGO_SERVER           = "mobisvm1.informatik.uni-hamburg.de"; 
+        public static readonly string MONGO_PORT             = "27017";
+        public static readonly string MONGO_USER             = "Crawler";
+        public static readonly string MONGO_PASS             = "Crawler123";
         public static readonly string MONGO_DATABASE         = "PlayStore";
         public static readonly string MONGO_COLLECTION       = "ProcessedApps";
         public static readonly string REVIEWS_COLLECTION     = "ProcessedReviews";

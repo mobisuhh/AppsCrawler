@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using BDC.BDCCommons;
@@ -11,6 +12,12 @@ namespace PlayStoreWorker
 {
     class Worker
     {
+		// MongoDB Wrapper
+		private static MongoDBWrapper mongoDB = null;
+
+		// TODO: make this configurable
+		private static readonly int MAX_RETRIES = 2;
+
         /// <summary>
         /// Entry point of the worker piece of the process
         /// Notice that you can run as many workers as you want to in order to make the crawling faster
@@ -25,8 +32,11 @@ namespace PlayStoreWorker
             // Parser
             PlayStoreParser parser = new PlayStoreParser();
 
+			// Randomizer
+			Random rand = new Random();
+
             // Configuring MongoDB Wrapper
-            MongoDBWrapper mongoDB = new MongoDBWrapper();
+            mongoDB = new MongoDBWrapper();
             string fullServerAddress = String.Join(":", Consts.MONGO_SERVER, Consts.MONGO_PORT);
             mongoDB.ConfigureDatabase(Consts.MONGO_USER, Consts.MONGO_PASS, Consts.MONGO_AUTH_DB, fullServerAddress, Consts.MONGO_TIMEOUT, Consts.MONGO_DATABASE, Consts.MONGO_COLLECTION);
 
@@ -53,7 +63,7 @@ namespace PlayStoreWorker
                         Console.WriteLine("Duplicated App, skipped.");
 
                         // Delete it from the queue and continues the loop
-                        mongoDB.RemoveFromQueue (app.Url);
+						RemoveFromQueue(app.Url);
                         continue;
                     }
 
@@ -62,7 +72,8 @@ namespace PlayStoreWorker
                     server.Host = Consts.HOST;
                     server.Encoding = "utf-8";
                     server.EncodingDetection = WebRequests.CharsetDetection.DefaultCharset;
-                    string response = server.Get (appUrl);
+					//
+					string response = server.Get (appUrl);
 
                     // Flag Indicating Success while processing and parsing this app
                     bool ProcessingWorked = true;
@@ -72,7 +83,7 @@ namespace PlayStoreWorker
                     {
                         LogWriter.Info ("Error opening app page : " + appUrl);
                         ProcessingWorked = false;
-                        
+
                         // Renewing WebRequest Object to get rid of Cookies
                         server = new WebRequests ();
 
@@ -81,22 +92,43 @@ namespace PlayStoreWorker
 
                         Console.WriteLine ("Retrying:" + retryCounter);
 
-                        // Checking for maximum retry count
-                        double waitTime;
-                        if (retryCounter >= 11)
-                        {
-                            waitTime = TimeSpan.FromMinutes (35).TotalMilliseconds;
+						int randomWaitingTime = rand.Next((int) Math.Pow(2,retryCounter), (int) Math.Pow(2,retryCounter+1));
+						double waitTime = TimeSpan.FromSeconds (randomWaitingTime).TotalMilliseconds;
 
-                            // Removing App from the database (this the app page may have expired)
-                            mongoDB.RemoveFromQueue (app.Url);
-                        }
-                        else
-                        {
-                            // Calculating next wait time ( 2 ^ retryCounter seconds)
-                            waitTime = TimeSpan.FromSeconds (Math.Pow (2, retryCounter)).TotalMilliseconds;
-                        }
+						//
+						// After max. number of retries, request details of a predefined well known app 
+						// and check whether the response is invalid
+						if (retryCounter >= MAX_RETRIES)
+						{
+							Console.Write("Request details of the predefined app..");
+							string responseTest = server.Get (Consts.APP_URL_PREFIX + Consts.WELLKNOWN_APP_URL);
+
+							//
+							// Verify whether app details of the predefined app can be requested
+							// if not, wait for a longer period of time
+							if (String.IsNullOrEmpty (responseTest) || server.StatusCode != System.Net.HttpStatusCode.OK)
+							{
+								Console.Write("Failure");
+								// set the wait time in minutes
+								waitTime = TimeSpan.FromMinutes (randomWaitingTime).TotalMilliseconds;
+							}
+							//
+							// otherwise, remove the app url from the database queue (probably the app page has expired)
+							else
+							{
+								Console.Write("Success");
+
+								RemoveFromQueue(app.Url);
+
+								// Reset the retry counter
+								retryCounter = 0;
+							}
+
+							Console.WriteLine(" ");
+						}
 
                         // Hiccup to avoid google blocking connections in case of heavy traffic from the same IP
+						Console.WriteLine("Sleep for {0} seconds..", TimeSpan.FromMilliseconds(waitTime).TotalSeconds);
                         Thread.Sleep (Convert.ToInt32 (waitTime));
                     }
                     else
@@ -124,7 +156,7 @@ namespace PlayStoreWorker
                             // Console Feedback, Comment this line to disable if you want to
                             Console.WriteLine("Inserted App : " + parsedApp.Name);
 
-                            mongoDB.RemoveFromQueue(app.Url);
+							RemoveFromQueue(app.Url);
                         }
 
                         // Counters for console feedback only
@@ -174,5 +206,12 @@ namespace PlayStoreWorker
                 }
             }
         }
+
+		private static void RemoveFromQueue(string appUrl)
+		{
+			// Removing App from the database (this the app page may have expired)
+			Console.WriteLine("Removing app from the database queue: {0}", appUrl);
+			mongoDB.RemoveFromQueue (appUrl);
+		}
     }
 }
