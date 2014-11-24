@@ -127,7 +127,7 @@ namespace SharedLibrary.MongoDB
         /// <returns>Operation status. True if worked, false otherwise</returns>
         public bool AddToQueue (string appUrl)
         {
-            return _database.GetCollection<QueuedApp> (Consts.QUEUED_APPS_COLLECTION).SafeInsert (new QueuedApp { Url = appUrl, IsBusy = false});
+			return _database.GetCollection<QueuedApp> (Consts.QUEUED_APPS_COLLECTION).SafeInsert (new QueuedApp { Url = appUrl, IsBusy = false, Timestamp = DateTime.Now});
         }
 
         /// <summary>
@@ -141,9 +141,10 @@ namespace SharedLibrary.MongoDB
             // Mongo Query
             var mongoQuery      = Query.EQ ("IsBusy", false);
             var updateStatement = Update.Set ("IsBusy", true);
+			var sortBy = SortBy.Descending ("Timestamp");
 
             // Finding a Not Busy App, and updating its state to busy
-            var mongoResponse = _database.GetCollection<QueuedApp> (Consts.QUEUED_APPS_COLLECTION).FindAndModify (mongoQuery, null, updateStatement, false);
+			var mongoResponse = _database.GetCollection<QueuedApp> (Consts.QUEUED_APPS_COLLECTION).FindAndModify (mongoQuery, sortBy, updateStatement, false);
 
             // Checking for query error or no app found
             if (mongoResponse == null || mongoResponse.Response == null)

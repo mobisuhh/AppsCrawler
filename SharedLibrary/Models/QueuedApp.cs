@@ -9,5 +9,6 @@ namespace SharedLibrary.Models
         public ObjectId _id { get; set; }
         public String Url   { get; set; }
         public bool IsBusy  { get; set; }
+		public DateTime Timestamp { get; set; }
     }
 }
