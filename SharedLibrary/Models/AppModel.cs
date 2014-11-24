@@ -34,7 +34,7 @@ namespace SharedLibrary.Models
         public string   DeveloperPrivacyPolicy {get;set;}
 
         // Override of the ToString Method
-        public string ToString()
+        public override string ToString()
         {
             // Serializing Object as CSV
             return String.Join (",", 
