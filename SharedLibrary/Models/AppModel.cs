@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using MongoDB.Bson;
+using System.Collections.Generic;
 
 namespace SharedLibrary.Models
 {
@@ -82,4 +83,9 @@ namespace SharedLibrary.Models
         public double TwoStars   {get;set;}
         public double OneStars   {get;set;}
     }
+
+	public class AppModelRoot
+	{
+		public List<AppModel> AppModels { get; set; }
+	}
 }

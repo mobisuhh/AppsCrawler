@@ -10,6 +10,7 @@ namespace SharedLibrary
     {
         // Web Request Parameters and URLs
         public static readonly string CRAWL_URL          = "https://play.google.com/store/search?q={0}&c=apps";
+		public static readonly string CRAWL_CATEGORY_URL_PREFIX    = "https://play.google.com/store/apps/category/{0}";
         public static readonly string REVIEWS_URL        = "https://play.google.com/store/getreviews";
         public static readonly string HOST               = "play.google.com";
         public static readonly string ORIGIN             = "https://play.google.com";
@@ -17,6 +18,9 @@ namespace SharedLibrary
         public static readonly string INITIAL_POST_DATA  = "ipf=1&xhr=1";
         public static readonly string POST_DATA          = "start={0}&num=48&numChildren=0&ipf=1&xhr=1";
         public static readonly string APP_URL_PREFIX     = "https://play.google.com";
+
+		public static readonly string APP_URL_CATEGORY_TOP_FREE_SUFFIX   = "/collection/topselling_free";
+		public static readonly string APP_URL_CATEGORY_TOP_PAID_SUFFIX   = "/collection/topselling_paid";
         public static readonly string ACCEPT_LANGUAGE    = "Accept-Language: en-US;q=0.6,en;q=0.4,es;q=0.2";
         public static readonly string REVIEWS_POST_DATA  = "reviewType=0&pageNum={0}&id={1}&reviewSortOrder=2&xhr=1";
 		public static readonly string WELLKNOWN_APP_URL  = "/store/apps/details?id=com.whatsapp";

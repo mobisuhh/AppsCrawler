@@ -21,4 +21,9 @@ namespace SharedLibrary.Models
         public string   reviewBody  { get; set; }
         public DateTime timestamp   { get; set; }
     }
+
+	public class AppReviewRoot
+	{
+		public List<AppReview> AppReviews { get; set; }
+	}
 }
