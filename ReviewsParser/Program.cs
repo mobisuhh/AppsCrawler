@@ -1,5 +1,4 @@
-﻿using BDC.BDCCommons;
-using MongoDB.Driver.Builders;
+﻿using MongoDB.Driver.Builders;
 using Newtonsoft.Json;
 using SharedLibrary;
 using SharedLibrary.Models;
@@ -11,79 +10,88 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WebUtilsLib;
+using log4net;
+using System.IO;
+using log4net.Config;
 
 namespace ReviewsParser
 {
-    /* THIS CONSOLE APPLICATION IS JUST A BASIC SCRAPER FOR GOOGLE PLAY STORE REVIEWS OF APPS.
-     * THIS LAYER IS NOT INCLUDED ON THE AUTOMATED FLOW OF THE CRAWLER, AND SHOULD BE USED FOR SMALL
-     * SCALE PARSING OF REVIEWS. 
-     * 
-     * ReviewsWorker used the existing database of apps to get the "Id's" of the apps of interest, and parse out their reviews.
-     * This project is only a Proof of Concept (POC) and it is not ready for "Prime-Time" / "Full Scale" usage.
+    /* 
+     * ReviewsParser
+     * This console application parses the reviews of a list of apps, either supplied via a json file, or retrieved
+     * from the predefined database.
      */
 
     public class Program
     {
-        // Arguments Quick Documentation:
-        // args[0] = number of apps to be processed (int)
-        // args[1] = number of pages of reviews to be fetched per app (each page contains 20 reviews)
-        private static Dictionary<String, int> _arguments = new Dictionary<String, int> ();
+		// Input value constant denoting the usage of a database as input
+		private static readonly string ARG_DATABASE = "database";
+		private static readonly ILog log = LogManager.GetLogger(typeof(Program));
+		// App URL Prefix (must be removed in order to obtain the app ID)
+		private static readonly string URL_PLAYSTORE_IDPREFIX = "https://play.google.com/store/apps/details?id=";
 
         static void Main (string[] args)
         {
-            // Configuring Log Object Threshold
-            LogWriter.Threshold = TLogEventLevel.Information;
-            LogWriter.LogEvent  += LogWriter_LogEvent;
+			// configure a basic console logger
+			BasicConfigurator.Configure();
 
-            // Parsing Arguments
-            LogWriter.Info ("Checking for Arguments");
+			log.Info ("Parsing arguments");
+			var options = new ReviewParserOptions();
+			IEnumerable<AppModel> appList = null;
+			// Creating instance of Mongo Handler
+			MongoDBWrapper mongoClient = new MongoDBWrapper ();
 
-            if (args == null || args.Length != 3)
-            {
-                LogWriter.Fatal ("Arguments Fatal", "Incorrect number of arguments received. Try passing two.");
-                return; // Halts.
-            }
+			if (CommandLine.Parser.Default.ParseArguments (args, options)) {
+				log.InfoFormat ("Configuring Mongo Client");
 
-            LogWriter.Info ("Reading Arguments");
+				string fullServerAddress = String.Join (":", Consts.MONGO_SERVER, Consts.MONGO_PORT);
+				mongoClient.ConfigureDatabase (Consts.MONGO_USER, Consts.MONGO_PASS, Consts.MONGO_AUTH_DB, fullServerAddress, Consts.MONGO_TIMEOUT, Consts.MONGO_DATABASE, Consts.MONGO_COLLECTION);
 
-            // Reading actual arguments received
-            _arguments.Add ("AppsToProcess", Int32.Parse (args[0]));
-            _arguments.Add ("ReviewsPagePerApp", Int32.Parse (args[1]));
-            _arguments.Add ("AppsToSkip", Int32.Parse (args[2]));
+				//
+				// Use file as input
+				if (!options.Input.Equals (ARG_DATABASE)) {
+					log.InfoFormat ("Reading AppIds from the file {0}", options.Input);
 
-            // Building MongoDB Query - This query specifies which applications you want to parse out the reviews
-            // For more regarding MongoDB Queries, check the documentation on the project wiki page
-            //var mongoQuery = Query.EQ ("Instalations", "1,000,000 - 5,000,000");
-            var mongoQuery = Query.EQ ("Category", "/store/apps/category/EDUCATION");
+					try {
+						var appModelRoot = JsonHelpers.CreateFromJsonFile<AppParamRoot> (options.Input);
+						appList = CreateAppModelList (appModelRoot.AppParams);
+					} catch (Exception e) {
+						log.Error (e.Message);
+						return;
+					}
+				//
+				// .. or a database
+				} else {
+					log.Info ("Retrieving AppIds from the database");
 
-            LogWriter.Info ("Configuring MonboDB Client");
-
-            // Creating instance of Mongo Handler for the main collection
-            MongoDBWrapper mongoClient = new MongoDBWrapper ();
-            string fullServerAddress = String.Join (":", Consts.MONGO_SERVER, Consts.MONGO_PORT);
-            mongoClient.ConfigureDatabase (Consts.MONGO_USER, Consts.MONGO_PASS, Consts.MONGO_AUTH_DB, fullServerAddress, Consts.MONGO_TIMEOUT, Consts.MONGO_DATABASE, Consts.MONGO_COLLECTION);
-
-            LogWriter.Info ("Iterating over Apps");
-
-            // App URL Prefix (must be removed in order to obtain the app ID)
-            string playStorePrefix = "https://play.google.com/store/apps/details?id=";
+					// Building MongoDB Query - This query specifies which applications you want to parse out the reviews
+					// For more regarding MongoDB Queries, check the documentation on the project wiki page
+					//var mongoQuery = Query.EQ ("Instalations", "1,000,000 - 5,000,000");
+					var mongoQuery = Query.EQ ("Category", "/store/apps/category/MUSIC_AND_AUDIO");
+					appList = mongoClient.FindMatch<AppModel> (mongoQuery, options.MaxApps, options.AppsToSkip);
+				}
+			} 
+			else 
+			{
+				return;
+			}
 
             // Creating Play Store Parser
             PlayStoreParser parser = new PlayStoreParser ();
 
             // Iterating over Query Results for the App Ids
-            foreach (var appRecord in mongoClient.FindMatch<AppModel>(mongoQuery, _arguments["AppsToProcess"], _arguments["AppsToSkip"]))
+			foreach (var app in appList)
             {
                 // Extracting app ID from URL
-                string appId = appRecord.Url.Replace(playStorePrefix, String.Empty);
+				string appId = app.Url.Replace(URL_PLAYSTORE_IDPREFIX, String.Empty);
 
                 // Console Feedback
-                LogWriter.Info("Processing App [ " + appRecord.Name + " ] ");
+				log.Info("Processing App [ " + app.Name + " ] ");
 
                 bool shouldSkipApp = false;
 
                 // Iterating over Review Pages up to the max received as argument
-                for (int currentPage = 1; currentPage <= _arguments["ReviewsPagePerApp"]; currentPage++)
+				for (int currentPage = 1; currentPage <= options.MaxReviewsPerApp; currentPage++)
                 {
                     // Checking for the need to skip this app in case of duplicated review
                     if (shouldSkipApp)
@@ -92,7 +100,7 @@ namespace ReviewsParser
                     try
                     {
                         // Page Feedback
-                        LogWriter.Info("\tCurrent Page: " + currentPage);
+                        log.Info("Current Page: " + currentPage);
 
                         // Issuing Request for Reviews
                         string response = GetAppReviews(appId, currentPage);
@@ -100,7 +108,7 @@ namespace ReviewsParser
                         // Checking for Blocking Situation
                         if (String.IsNullOrEmpty(response))
                         {
-                            LogWriter.Info("Blocked by Play Store. Sleeping process for 10 minutes before retrying.");
+                            log.Info("Blocked by Play Store. Sleeping process for 10 minutes before retrying.");
 
                             // Thread Wait for 10 Minutes
                             Thread.Sleep(10 * 60 * 1000);
@@ -109,7 +117,8 @@ namespace ReviewsParser
                         // Checking for "No Reviews" app
                         if (response.Length < 50)
                         {
-                            LogWriter.Info("No Reviews for this app. Skipping");
+                            log.Info("No Reviews for this app. Skipping");
+							//TODO: Log the date and time of last try
                             break;
                         }
 
@@ -121,8 +130,8 @@ namespace ReviewsParser
                         {
                             // Adding App Data to the review
                             review.appID = appId;
-                            review.appName = appRecord.Name;
-                            review.appURL = appRecord.Url;
+							review.appName = app.Name;
+							review.appURL = app.Url;
 
                             // Adding processing timestamp to the model
                             review.timestamp = DateTime.Now;
@@ -138,7 +147,7 @@ namespace ReviewsParser
                             }
                             else
                             {
-                                LogWriter.Info("Duplicated Review", "Review already parsed. Skipping App");
+                                log.Info("Duplicated Review. Review already parsed. Skipping App");
                                 //shouldSkipApp = true;
                                 //break;
                             }
@@ -146,7 +155,7 @@ namespace ReviewsParser
                     }
                     catch (Exception ex)
                     {
-                        LogWriter.Error(ex);
+                        log.Error(ex);
                     }
                 }
             }
@@ -188,10 +197,48 @@ namespace ReviewsParser
             return validHTML;
         }
 
-        // Redirects the Logging Events to the console instead of an log file
-        static void LogWriter_LogEvent (TLogMessage msg)
-        {
-            Console.WriteLine(msg.EVT_MESSAGE);
-        }
+		private static List<AppModel> CreateAppModelList(List<AppParam> appParamList)
+		{
+			var listToReturn = new List<AppModel> ();
+			foreach (var appParam in appParamList) 
+			{
+				if (String.IsNullOrEmpty (appParam.AppId))
+					throw new ArgumentException ("Invalid (Empty) AppId found.");
+
+				var appModel = new AppModel ();
+
+				appModel.Url = URL_PLAYSTORE_IDPREFIX + appParam.AppId;
+				appModel.Name = appParam.AppName;
+
+				listToReturn.Add(appModel);
+			}
+
+			return listToReturn;
+		}
+
+		/*
+		 * TODO: Remove this 
+		 */
+		private static IEnumerable<AppModel> CreateCustomAppModels(string appsToProcessArg)
+		{
+			string[] appsToProcess = null;
+			appsToProcess = appsToProcessArg.Split (';');
+
+			AppModel appModel = null;
+			List<AppModel> appList = new List<AppModel> ();
+			foreach (string appId in appsToProcess) 
+			{
+				if (String.IsNullOrEmpty (appId))
+					continue;
+
+				appModel = new AppModel ();
+				appModel.Url = appId;
+				appModel.Name = appId;
+
+				appList.Add (appModel);
+			}
+
+			return appList;
+		}
     }
 }
