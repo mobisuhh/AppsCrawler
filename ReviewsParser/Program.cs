@@ -36,7 +36,7 @@ namespace ReviewsParser
 			BasicConfigurator.Configure();
 
 			log.Info ("Parsing arguments");
-			var options = new ReviewParserOptions();
+			var options = new ReviewsWorkerOptions();
 			IEnumerable<AppModel> appList = null;
 			// Creating instance of Mongo Handler
 			MongoDBWrapper mongoClient = new MongoDBWrapper ();
@@ -53,7 +53,7 @@ namespace ReviewsParser
 					log.InfoFormat ("Reading AppIds from the file {0}", options.Input);
 
 					try {
-						var appModelRoot = JsonHelpers.CreateFromJsonFile<AppParamRoot> (options.Input);
+						var appModelRoot = JsonHelper.CreateFromJsonFile<AppParamRoot> (options.Input);
 						appList = CreateAppModelList (appModelRoot.AppParams);
 					} catch (Exception e) {
 						log.Error (e.Message);

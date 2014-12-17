@@ -5,7 +5,7 @@ using System.Text;
 
 namespace ReviewsParser
 {
-	public class ReviewParserOptions
+	public class ReviewsWorkerOptions
 	{
 		[Option('i', "input", Required = true, DefaultValue="database", HelpText = "Source type of AppIds ('database' or a concrete json file)")]
 		public string Input { get; set; }
