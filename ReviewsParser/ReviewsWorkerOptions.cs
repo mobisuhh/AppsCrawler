@@ -16,6 +16,9 @@ namespace ReviewsParser
 		[Option('r', "maxreviews", DefaultValue = 100, HelpText = "The maximum number of reviews per app to process.")]
 		public int MaxReviewsPerApp { get; set; }
 
+		[Option('p', "startpage", DefaultValue = 1, HelpText = "The page number to start from.")]
+		public int ReviewsStartPage { get; set; }
+
 		[Option('s', "apps2skip", DefaultValue = 0, HelpText = "The maximum number of reviews per app to process.")]
 		public int AppsToSkip { get; set; }
 

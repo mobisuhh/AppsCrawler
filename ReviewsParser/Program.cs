@@ -91,7 +91,7 @@ namespace ReviewsParser
                 bool shouldSkipApp = false;
 
                 // Iterating over Review Pages up to the max received as argument
-				for (int currentPage = 1; currentPage <= options.MaxReviewsPerApp; currentPage++)
+				for (int currentPage = options.ReviewsStartPage; currentPage <= options.MaxReviewsPerApp; currentPage++)
                 {
                     // Checking for the need to skip this app in case of duplicated review
                     if (shouldSkipApp)
